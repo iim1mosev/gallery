@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>معرض الصور</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: #000;
+      color: #fff;
+      overflow-x: hidden;
+      min-height: 100vh;
+    }
+
+    /* شريط العنوان زي الموبايل */
+    .header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .header h1 {
+      font-size: 17px;
+      font-weight: 600;
+    }
+
+    .header .count {
+      font-size: 13px;
+      color: #aaa;
+    }
+
+    /* شبكة الصور */
+    .gallery {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 2px;
+      padding: 2px;
+    }
+
+    .gallery-item {
+      position: relative;
+      aspect-ratio: 1;
+      overflow: hidden;
+      background: #111;
+      cursor: pointer;
+    }
+
+    .gallery-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      transition: transform 0.2s ease;
+    }
+
+    .gallery-item:active img {
+      transform: scale(0.96);
+    }
+
+    .gallery-item .placeholder {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #1a1a1a;
+      color: #555;
+      font-size: 12px;
+      text-align: center;
+      padding: 8px;
+    }
+
+    /* شاشة عرض الصورة الكاملة */
+    .viewer {
+      position: fixed;
+      inset: 0;
+      background: #000;
+      z-index: 1000;
+      display: none;
+      flex-direction: column;
+      opacity: 0;
+      transition: opacity 0.25s ease;
+    }
+
+    .viewer.active {
+      display: flex;
+      opacity: 1;
+    }
+
+    .viewer-header {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      background: linear-gradient(to bottom, rgba(0,0,0,0.7), transparent);
+    }
+
+    .viewer-header button {
+      background: none;
+      border: none;
+      color: #fff;
+      font-size: 28px;
+      width: 44px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      border-radius: 50%;
+    }
+
+    .viewer-header button:active {
+      background: rgba(255,255,255,0.15);
+    }
+
+    .viewer-title {
+      font-size: 15px;
+      font-weight: 500;
+    }
+
+    .viewer-body {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .viewer-body img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      user-select: none;
+      -webkit-user-drag: none;
+    }
+
+    /* أزرار التنقل */
+    .nav-btn {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      background: rgba(0,0,0,0.4);
+      border: none;
+      color: #fff;
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      font-size: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      z-index: 5;
+      opacity: 0.8;
+      transition: opacity 0.2s, background 0.2s;
+    }
+
+    .nav-btn:active {
+      background: rgba(255,255,255,0.2);
+    }
+
+    .nav-prev {
+      right: 12px;
+    }
+
+    .nav-next {
+      left: 12px;
+    }
+
+    .nav-btn.hidden {
+      display: none;
+    }
+
+    /* شريط سفلي */
+    .viewer-footer {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 16px;
+      background: linear-gradient(to top, rgba(0,0,0,0.7), transparent);
+      text-align: center;
+      font-size: 13px;
+      color: #ccc;
+    }
+
+    /* تحسين للشاشات الكبيرة */
+    @media (min-width: 600px) {
+      .gallery {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 3px;
+        max-width: 900px;
+        margin: 0 auto;
+      }
+    }
+
+    @media (min-width: 900px) {
+      .gallery {
+        grid-template-columns: repeat(5, 1fr);
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <h1>الصور</h1>
+    <span class="count" id="photoCount">330 صورة</span>
+  </div>
+
+  <div class="gallery" id="gallery">
+    <!-- الصور هتتولد هنا -->
+  </div>
+
+  <!-- شاشة عرض الصورة -->
+  <div class="viewer" id="viewer">
+    <div class="viewer-header">
+      <button id="closeBtn" title="إغلاق">✕</button>
+      <span class="viewer-title" id="viewerTitle">photo 1.jpg</span>
+      <div style="width:44px"></div>
+    </div>
+
+    <div class="viewer-body">
+      <button class="nav-btn nav-prev" id="prevBtn">›</button>
+      <img id="viewerImg" src="" alt="">
+      <button class="nav-btn nav-next" id="nextBtn">‹</button>
+    </div>
+
+    <div class="viewer-footer" id="viewerFooter">
+      1 / 330
+    </div>
+  </div>
+
+  <script>
+    // ========== الإعدادات ==========
+    const TOTAL_PHOTOS = 330;
+
+    // المسار بتاع الصور
+    // لو الصور في نفس فولدر الـ HTML سيبه فاضي
+    // لو في فولدر اسمه images مثلاً اكتب: "images/"
+    const IMAGE_PATH = "";
+
+    // ========== المتغيرات ==========
+    let currentIndex = 0;
+    const gallery = document.getElementById("gallery");
+    const viewer = document.getElementById("viewer");
+    const viewerImg = document.getElementById("viewerImg");
+    const viewerTitle = document.getElementById("viewerTitle");
+    const viewerFooter = document.getElementById("viewerFooter");
+    const closeBtn = document.getElementById("closeBtn");
+    const prevBtn = document.getElementById("prevBtn");
+    const nextBtn = document.getElementById("nextBtn");
+
+    // ========== توليد الشبكة ==========
+    function createGallery() {
+      gallery.innerHTML = "";
+
+      for (let i = 1; i <= TOTAL_PHOTOS; i++) {
+        const item = document.createElement("div");
+        item.className = "gallery-item";
+        item.dataset.index = i - 1;
+
+        const img = document.createElement("img");
+        img.loading = "lazy";
+        img.alt = "photo " + i + ".jpg";
+        img.src = IMAGE_PATH + "photo " + i + ".jpg";
+
+        // لو الصورة مش موجودة يظهر مكانها اسمها
+        img.onerror = function () {
+          this.style.display = "none";
+          const placeholder = document.createElement("div");
+          placeholder.className = "placeholder";
+          placeholder.textContent = "photo " + i + ".jpg";
+          item.appendChild(placeholder);
+        };
+
+        item.appendChild(img);
+        item.addEventListener("click", () => openViewer(i - 1));
+        gallery.appendChild(item);
+      }
+    }
+
+    // ========== فتح الصورة ==========
+    function openViewer(index) {
+      currentIndex = index;
+      updateViewer();
+      viewer.classList.add("active");
+      document.body.style.overflow = "hidden";
+    }
+
+    // ========== تحديث العارض ==========
+    function updateViewer() {
+      const photoNum = currentIndex + 1;
+      const fileName = "photo " + photoNum + ".jpg";
+
+      viewerTitle.textContent = fileName;
+      viewerFooter.textContent = photoNum + " / " + TOTAL_PHOTOS;
+      viewerImg.src = IMAGE_PATH + fileName;
+      viewerImg.alt = fileName;
+
+      prevBtn.classList.toggle("hidden", currentIndex === 0);
+      nextBtn.classList.toggle("hidden", currentIndex === TOTAL_PHOTOS - 1);
+    }
+
+    // ========== إغلاق ==========
+    function closeViewer() {
+      viewer.classList.remove("active");
+      document.body.style.overflow = "";
+    }
+
+    // ========== التنقل ==========
+    function goPrev() {
+      if (currentIndex > 0) {
+        currentIndex--;
+        updateViewer();
+      }
+    }
+
+    function goNext() {
+      if (currentIndex < TOTAL_PHOTOS - 1) {
+        currentIndex++;
+        updateViewer();
+      }
+    }
+
+    // ========== الأحداث ==========
+    closeBtn.addEventListener("click", closeViewer);
+    prevBtn.addEventListener("click", goPrev);
+    nextBtn.addEventListener("click", goNext);
+
+    // إغلاق بالضغط على الخلفية
+    viewer.addEventListener("click", (e) => {
+      if (e.target === viewer || e.target.classList.contains("viewer-body")) {
+        closeViewer();
+      }
+    });
+
+    // اختصارات الكيبورد
+    document.addEventListener("keydown", (e) => {
+      if (!viewer.classList.contains("active")) return;
+
+      if (e.key === "Escape") closeViewer();
+      if (e.key === "ArrowRight") goPrev(); // RTL
+      if (e.key === "ArrowLeft") goNext();
+    });
+
+    // دعم السحب (Swipe)
+    let touchStartX = 0;
+    let touchEndX = 0;
+
+    viewer.addEventListener("touchstart", (e) => {
+      touchStartX = e.changedTouches[0].screenX;
+    }, { passive: true });
+
+    viewer.addEventListener("touchend", (e) => {
+      touchEndX = e.changedTouches[0].screenX;
+      handleSwipe();
+    }, { passive: true });
+
+    function handleSwipe() {
+      const diff = touchStartX - touchEndX;
+      if (Math.abs(diff) < 50) return;
+
+      if (diff > 0) {
+        goNext();
+      } else {
+        goPrev();
+      }
+    }
+
+    // ========== تشغيل ==========
+    createGallery();
+  </script>
+</body>
+</html>
