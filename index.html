@@ -20,6 +20,83 @@
       min-height: 100vh;
     }
 
+    /* ========== شاشة الباسورد ========== */
+    .password-screen {
+      position: fixed;
+      inset: 0;
+      background: #000;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .password-screen.hidden {
+      display: none;
+    }
+
+    .password-box {
+      width: 100%;
+      max-width: 320px;
+      text-align: center;
+    }
+
+    .password-box h2 {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .password-box p {
+      font-size: 14px;
+      color: #888;
+      margin-bottom: 28px;
+    }
+
+    .password-box input {
+      width: 100%;
+      padding: 14px 16px;
+      font-size: 22px;
+      letter-spacing: 8px;
+      text-align: center;
+      background: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: 12px;
+      color: #fff;
+      outline: none;
+      margin-bottom: 16px;
+      -webkit-appearance: none;
+    }
+
+    .password-box input:focus {
+      border-color: #555;
+    }
+
+    .password-box button {
+      width: 100%;
+      padding: 14px;
+      font-size: 16px;
+      font-weight: 600;
+      background: #fff;
+      color: #000;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+    }
+
+    .password-box button:active {
+      opacity: 0.85;
+    }
+
+    .password-error {
+      color: #ff4d4d;
+      font-size: 13px;
+      margin-top: 12px;
+      min-height: 20px;
+    }
+
     /* شريط العنوان زي الموبايل */
     .header {
       position: sticky;
@@ -206,6 +283,15 @@
       color: #ccc;
     }
 
+    /* المحتوى الرئيسي مخفي لحد ما يدخل الباسورد */
+    .main-content {
+      display: none;
+    }
+
+    .main-content.visible {
+      display: block;
+    }
+
     /* تحسين للشاشات الكبيرة */
     @media (min-width: 600px) {
       .gallery {
@@ -225,13 +311,27 @@
 </head>
 <body>
 
-  <div class="header">
-    <h1>الصور</h1>
-    <span class="count" id="photoCount">330 صورة</span>
+  <!-- شاشة الباسورد -->
+  <div class="password-screen" id="passwordScreen">
+    <div class="password-box">
+      <h2>أدخل كلمة المرور</h2>
+      <p>أدخل الرقم للدخول إلى المعرض</p>
+      <input type="password" id="passwordInput" inputmode="numeric" pattern="[0-9]*" placeholder="••••••" autocomplete="off" maxlength="20">
+      <button id="passwordBtn">دخول</button>
+      <div class="password-error" id="passwordError"></div>
+    </div>
   </div>
 
-  <div class="gallery" id="gallery">
-    <!-- الصور هتتولد هنا -->
+  <!-- المحتوى الرئيسي -->
+  <div class="main-content" id="mainContent">
+    <div class="header">
+      <h1>الصور</h1>
+      <span class="count" id="photoCount">330 صورة</span>
+    </div>
+
+    <div class="gallery" id="gallery">
+      <!-- الصور هتتولد هنا -->
+    </div>
   </div>
 
   <!-- شاشة عرض الصورة -->
@@ -256,11 +356,76 @@
   <script>
     // ========== الإعدادات ==========
     const TOTAL_PHOTOS = 330;
+    const IMAGE_PATH = ""; // لو الصور في فولدر تاني اكتب المسار هنا مثل: "images/"
 
-    // المسار بتاع الصور
-    // لو الصور في نفس فولدر الـ HTML سيبه فاضي
-    // لو في فولدر اسمه images مثلاً اكتب: "images/"
-    const IMAGE_PATH = "";
+    // ========== متغيرات الباسورد ==========
+    let correctPassword = null;
+
+    // ========== تحميل الباسورد من ملف .env ==========
+    async function loadPasswordFromEnv() {
+      try {
+        const response = await fetch(".env");
+        if (!response.ok) throw new Error("ملف .env مش موجود");
+        const text = await response.text();
+
+        // يبحث عن WIB_PASSWORD= أرقام
+        const match = text.match(/WIB_PASSWORD\s*=\s*(\d+)/);
+        if (match && match[1]) {
+          return match[1];
+        }
+        throw new Error("WIB_PASSWORD مش موجود أو مش أرقام");
+      } catch (err) {
+        console.warn("مقدرش يقرأ ملف .env:", err.message);
+        // fallback لو الملف مش متاح (مثلاً فتح الملف مباشرة من الكمبيوتر)
+        // غيّر الرقم ده لو عايز باسورد افتراضي
+        return "10112006";
+      }
+    }
+
+    // ========== التحقق من الباسورد ==========
+    async function initPassword() {
+      correctPassword = await loadPasswordFromEnv();
+
+      const input = document.getElementById("passwordInput");
+      const btn = document.getElementById("passwordBtn");
+      const error = document.getElementById("passwordError");
+      const screen = document.getElementById("passwordScreen");
+      const main = document.getElementById("mainContent");
+
+      function checkPassword() {
+        const value = input.value.trim();
+
+        if (value === "") {
+          error.textContent = "اكتب كلمة المرور";
+          return;
+        }
+
+        if (value === correctPassword) {
+          // نجح
+          screen.classList.add("hidden");
+          main.classList.add("visible");
+          createGallery(); // نبدأ المعرض بعد الدخول
+        } else {
+          error.textContent = "كلمة المرور غلط";
+          input.value = "";
+          input.focus();
+        }
+      }
+
+      btn.addEventListener("click", checkPassword);
+
+      input.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") checkPassword();
+      });
+
+      // يسمح بأرقام فقط
+      input.addEventListener("input", () => {
+        input.value = input.value.replace(/[^0-9]/g, "");
+        error.textContent = "";
+      });
+
+      input.focus();
+    }
 
     // ========== المتغيرات ==========
     let currentIndex = 0;
@@ -287,7 +452,6 @@
         img.alt = "photo " + i + ".jpg";
         img.src = IMAGE_PATH + "photo " + i + ".jpg";
 
-        // لو الصورة مش موجودة يظهر مكانها اسمها
         img.onerror = function () {
           this.style.display = "none";
           const placeholder = document.createElement("div");
@@ -350,19 +514,17 @@
     prevBtn.addEventListener("click", goPrev);
     nextBtn.addEventListener("click", goNext);
 
-    // إغلاق بالضغط على الخلفية
     viewer.addEventListener("click", (e) => {
       if (e.target === viewer || e.target.classList.contains("viewer-body")) {
         closeViewer();
       }
     });
 
-    // اختصارات الكيبورد
     document.addEventListener("keydown", (e) => {
       if (!viewer.classList.contains("active")) return;
 
       if (e.key === "Escape") closeViewer();
-      if (e.key === "ArrowRight") goPrev(); // RTL
+      if (e.key === "ArrowRight") goPrev();
       if (e.key === "ArrowLeft") goNext();
     });
 
@@ -391,7 +553,7 @@
     }
 
     // ========== تشغيل ==========
-    createGallery();
+    initPassword();
   </script>
 </body>
 </html>
